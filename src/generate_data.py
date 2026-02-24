@@ -76,7 +76,7 @@ def generate_dataset():
     
     os.makedirs("data", exist_ok=True)
     df.to_csv("data/all_stocks_5yr.csv", index=False)
-    print(f"✅ Dataset generated: {len(df):,} rows, {df['Name'].nunique()} tickers")
+    print(f"✅ Dataset generated : {len(df):,} rows, {df['Name'].nunique()} tickers")
     print(f"   Date range: {df['date'].min()} → {df['date'].max()}")
     return df
 
