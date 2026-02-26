@@ -1,1 +1,0 @@
-# TrendCast src package
