@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrendCast — Stock Trend Prediction</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:       #080c14;
+    --surface:  #0d1421;
+    --card:     #111827;
+    --border:   #1e2d45;
+    --accent:   #00d4ff;
+    --green:    #00ff9d;
+    --red:      #ff3b5c;
+    --yellow:   #ffd60a;
+    --muted:    #4a6080;
+    --text:     #e2e8f0;
+    --subtext:  #94a3b8;
+    --glow:     0 0 30px rgba(0,212,255,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Orb glows ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+  }
+  .orb1 { width:500px; height:500px; background:#00d4ff; top:-150px; right:-100px; animation: drift1 12s ease-in-out infinite alternate; }
+  .orb2 { width:400px; height:400px; background:#00ff9d; bottom:-100px; left:-80px; animation: drift2 15s ease-in-out infinite alternate; }
+
+  @keyframes drift1 { from{transform:translate(0,0)} to{transform:translate(-60px,40px)} }
+  @keyframes drift2 { from{transform:translate(0,0)} to{transform:translate(40px,-60px)} }
+
+  /* ── Layout ── */
+  .wrap { position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:0 24px; }
+
+  /* ── Header ── */
+  header {
+    padding: 28px 0 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), var(--green));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+
+  .logo-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: rgba(0,255,157,0.08);
+    border: 1px solid rgba(0,255,157,0.2);
+    border-radius: 100px;
+    font-size: 12px;
+    color: var(--green);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.5; transform:scale(0.8); }
+  }
+
+  /* ── Section title ── */
+  .section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 36px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Overview grid ── */
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  @media (max-width: 1100px) { .overview-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 700px)  { .overview-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ticker-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ticker-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-radius: 12px;
+  }
+
+  .ticker-card.up::before   { background: linear-gradient(135deg, rgba(0,255,157,0.06), transparent); }
+  .ticker-card.down::before { background: linear-gradient(135deg, rgba(255,59,92,0.06), transparent); }
+
+  .ticker-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--glow);
+  }
+
+  .ticker-card:hover::before { opacity: 1; }
+
+  .ticker-card.active {
+    border-color: var(--accent);
+    box-shadow: var(--glow);
+  }
+
+  .tc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .tc-ticker {
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .tc-sector {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .signal-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 1px;
+  }
+
+  .signal-badge.up   { background: rgba(0,255,157,0.15); color: var(--green); border: 1px solid rgba(0,255,157,0.3); }
+  .signal-badge.down { background: rgba(255,59,92,0.15);  color: var(--red);   border: 1px solid rgba(255,59,92,0.3); }
+
+  .tc-price {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .tc-change {
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  .tc-change.pos { color: var(--green); }
+  .tc-change.neg { color: var(--red); }
+
+  .confidence-bar {
+    margin-top: 10px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .confidence-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+
+  .confidence-fill.up   { background: linear-gradient(90deg, var(--green), #00c978); }
+  .confidence-fill.down { background: linear-gradient(90deg, var(--red), #e0324f); }
+
+  .tc-conf-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 5px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── Detail panel ── */
+  .detail-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 40px;
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .detail-panel.visible { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity:0; transform:translateY(8px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  .detail-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .detail-title {
+    font-family: 'Space Mono', monospace;
+  }
+
+  .detail-ticker {
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .detail-name { font-size: 14px; color: var(--subtext); margin-top: 4px; }
+
+  .verdict-box {
+    text-align: right;
+  }
+
+  .verdict-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  .verdict {
+    font-family: 'Space Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+  }
+
+  .verdict.up   { color: var(--green); text-shadow: 0 0 20px rgba(0,255,157,0.5); }
+  .verdict.down { color: var(--red);   text-shadow: 0 0 20px rgba(255,59,92,0.5); }
+
+  .prob-display {
+    font-size: 13px;
+    color: var(--subtext);
+    margin-top: 4px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── Charts grid ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .chart-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .chart-wrap {
+    position: relative;
+    height: 200px;
+  }
+
+  /* ── Indicators grid ── */
+  .indicators-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  @media (max-width: 800px) { .indicators-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ind-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .ind-name {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  .ind-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .ind-value.bullish { color: var(--green); }
+  .ind-value.bearish { color: var(--red); }
+  .ind-value.neutral { color: var(--yellow); }
+
+  .ind-hint {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── RSI gauge ── */
+  .rsi-bar {
+    margin-top: 6px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--green) 0%, var(--yellow) 30%, var(--yellow) 70%, var(--red) 100%);
+    border-radius: 2px;
+    position: relative;
+  }
+
+  .rsi-needle {
+    position: absolute;
+    top: -3px;
+    width: 10px; height: 10px;
+    background: white;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 0 6px rgba(255,255,255,0.6);
+    transition: left 0.5s ease;
+  }
+
+  /* ── Loading ── */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+  }
+
+  .spin {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Placeholder ── */
+  .placeholder {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .placeholder-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .placeholder-text { font-family: 'Space Mono', monospace; font-size: 13px; letter-spacing: 1px; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🔮</div>
+      <div>
+        <div class="logo-text">TrendCast</div>
+        <div class="logo-sub">ML Stock Trend Prediction</div>
+      </div>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      MODEL LIVE · SVM · ROC-AUC 0.548
+    </div>
+  </header>
+
+  <!-- Overview -->
+  <div class="section-title">Market Overview — 10 S&P 500 Stocks</div>
+
+  <div class="overview-grid" id="overviewGrid">
+    <div class="loading"><div class="spin"></div> Loading predictions...</div>
+  </div>
+
+  <!-- Detail Panel -->
+  <div class="section-title" id="detailTitle" style="display:none">Stock Detail</div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="loading" id="detailLoading"><div class="spin"></div> Fetching data...</div>
+    <div id="detailContent" style="display:none">
+
+      <div class="detail-top">
+        <div class="detail-title">
+          <div class="detail-ticker" id="dTicker"></div>
+          <div class="detail-name" id="dName"></div>
+        </div>
+        <div class="verdict-box">
+          <div class="verdict-label">5-Day Prediction</div>
+          <div class="verdict" id="dVerdict"></div>
+          <div class="prob-display" id="dProb"></div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-box">
+          <div class="chart-label">Price + Bollinger Bands (60 days)</div>
+          <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-label">RSI(14)</div>
+          <div class="chart-wrap"><canvas id="rsiChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-box" style="margin-bottom:0">
+        <div class="chart-label">MACD</div>
+        <div class="chart-wrap"><canvas id="macdChart"></canvas></div>
+      </div>
+
+      <div class="indicators-grid" id="indicatorsGrid"></div>
+    </div>
+  </div>
+
+  <footer>
+    TrendCast · Kaggle S&P 500 Dataset · Predictions are for educational purposes only
+  </footer>
+
+</div>
+
+<script>
+let priceChart, rsiChart, macdChart;
+
+// ── Load overview ────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const res  = await fetch("/api/overview");
+  const data = await res.json();
+  const grid = document.getElementById("overviewGrid");
+  grid.innerHTML = "";
+
+  data.forEach(d => {
+    const isUp   = d.prediction.includes("UP");
+    const chgCls = d.change_pct >= 0 ? "pos" : "neg";
+    const chgPfx = d.change_pct >= 0 ? "▲" : "▼";
+    const conf   = Math.round(d.confidence * 100);
+
+    const card = document.createElement("div");
+    card.className = `ticker-card ${isUp ? "up" : "down"}`;
+    card.innerHTML = `
+      <div class="tc-header">
+        <div>
+          <div class="tc-ticker">${d.ticker}</div>
+          <div class="tc-sector">${d.sector}</div>
+        </div>
+        <div class="signal-badge ${isUp ? "up" : "down"}">${isUp ? "UP ↑" : "DN ↓"}</div>
+      </div>
+      <div class="tc-price">$${d.price.toFixed(2)}</div>
+      <div class="tc-change ${chgCls}">${chgPfx} ${Math.abs(d.change_pct).toFixed(2)}% today</div>
+      <div class="confidence-bar">
+        <div class="confidence-fill ${isUp ? "up" : "down"}" style="width:${conf}%"></div>
+      </div>
+      <div class="tc-conf-label">${conf}% confidence · RSI ${d.rsi}</div>
+    `;
+    card.addEventListener("click", () => selectTicker(d.ticker, card));
+    grid.appendChild(card);
+  });
+}
+
+// ── Select ticker ────────────────────────────────────────────────────────────
+async function selectTicker(ticker, cardEl) {
+  document.querySelectorAll(".ticker-card").forEach(c => c.classList.remove("active"));
+  cardEl.classList.add("active");
+
+  document.getElementById("detailTitle").style.display = "flex";
+  const panel = document.getElementById("detailPanel");
+  panel.classList.add("visible");
+  document.getElementById("detailLoading").style.display = "flex";
+  document.getElementById("detailContent").style.display = "none";
+
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const res  = await fetch(`/api/predict/${ticker}`);
+  const d    = await res.json();
+  const isUp = d.prediction.includes("UP");
+
+  document.getElementById("dTicker").textContent = d.ticker;
+  document.getElementById("dName").textContent   = `${d.name} · ${d.sector}`;
+
+  const vEl = document.getElementById("dVerdict");
+  vEl.textContent  = d.prediction;
+  vEl.className    = `verdict ${isUp ? "up" : "down"}`;
+
+  document.getElementById("dProb").textContent =
+    `P(Up) = ${(d.probability_up * 100).toFixed(1)}%  ·  Confidence ${(d.confidence * 100).toFixed(1)}%`;
+
+  drawPriceChart(d.price_history);
+  drawRsiChart(d.rsi_history, d.price_history.dates);
+  drawMacdChart(d.macd_history, d.price_history.dates);
+  drawIndicators(d.signals);
+
+  document.getElementById("detailLoading").style.display  = "none";
+  document.getElementById("detailContent").style.display = "block";
+}
+
+// ── Charts ───────────────────────────────────────────────────────────────────
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 600 },
+  plugins: { legend: { labels: { color: "#94a3b8", font: { family: "DM Sans", size: 11 }, boxWidth: 12 } } },
+  scales: {
+    x: { ticks: { color: "#4a6080", font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: "#1e2d45" } },
+    y: { ticks: { color: "#4a6080", font: { size: 9 } }, grid: { color: "#1e2d45" } }
+  }
+};
+
+function drawPriceChart(ph) {
+  if (priceChart) priceChart.destroy();
+  const ctx = document.getElementById("priceChart").getContext("2d");
+  priceChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: ph.dates.map(d => d.slice(5)),
+      datasets: [
+        { label: "Close",    data: ph.close,    borderColor: "#00d4ff", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+        { label: "SMA 20",   data: ph.sma20,    borderColor: "#ffd60a", borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false, borderDash: [4,3] },
+        { label: "SMA 50",   data: ph.sma50,    borderColor: "#8b5cf6", borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false, borderDash: [4,3] },
+        { label: "BB Upper", data: ph.bb_upper, borderColor: "rgba(0,255,157,0.3)", borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false },
+        { label: "BB Lower", data: ph.bb_lower, borderColor: "rgba(255,59,92,0.3)", borderWidth: 1, pointRadius: 0, tension: 0.3, fill: "+1", backgroundColor: "rgba(100,100,255,0.04)" },
+      ]
+    },
+    options: { ...chartDefaults }
+  });
+}
+
+function drawRsiChart(rsi, dates) {
+  if (rsiChart) rsiChart.destroy();
+  const ctx = document.getElementById("rsiChart").getContext("2d");
+  rsiChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: dates.map(d => d.slice(5)),
+      datasets: [
+        { label: "RSI(14)", data: rsi, borderColor: "#00d4ff", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+        { label: "OB(70)",  data: Array(rsi.length).fill(70), borderColor: "rgba(255,59,92,0.4)", borderWidth: 1, pointRadius: 0, borderDash: [4,3] },
+        { label: "OS(30)",  data: Array(rsi.length).fill(30), borderColor: "rgba(0,255,157,0.4)", borderWidth: 1, pointRadius: 0, borderDash: [4,3] },
+      ]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 0, max: 100 } } }
+  });
+}
+
+function drawMacdChart(macd, dates) {
+  if (macdChart) macdChart.destroy();
+  const ctx = document.getElementById("macdChart").getContext("2d");
+  const histColors = macd.hist.map(v => v >= 0 ? "rgba(0,255,157,0.6)" : "rgba(255,59,92,0.6)");
+  macdChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: dates.map(d => d.slice(5)),
+      datasets: [
+        { label: "Histogram", data: macd.hist, backgroundColor: histColors, borderWidth: 0, yAxisID: "y" },
+        { label: "MACD",      data: macd.macd, type: "line", borderColor: "#00d4ff", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, yAxisID: "y" },
+        { label: "Signal",    data: macd.signal, type: "line", borderColor: "#ffd60a", borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false, borderDash: [3,3], yAxisID: "y" },
+      ]
+    },
+    options: { ...chartDefaults }
+  });
+}
+
+// ── Indicators ───────────────────────────────────────────────────────────────
+function drawIndicators(signals) {
+  const grid = document.getElementById("indicatorsGrid");
+  grid.innerHTML = "";
+
+  const configs = [
+    {
+      key: "RSI(14)", label: "RSI (14)",
+      classify: v => v > 70 ? "bearish" : v < 30 ? "bullish" : "neutral",
+      hint: v => v > 70 ? "Overbought" : v < 30 ? "Oversold" : "Neutral",
+      extra: v => `<div class="rsi-bar"><div class="rsi-needle" style="left:${v}%"></div></div>`
+    },
+    {
+      key: "MACD Histogram", label: "MACD Hist",
+      classify: v => v > 0 ? "bullish" : "bearish",
+      hint: v => v > 0 ? "Bullish momentum" : "Bearish momentum",
+    },
+    {
+      key: "Bollinger %B", label: "Bollinger %B",
+      classify: v => v > 0.8 ? "bearish" : v < 0.2 ? "bullish" : "neutral",
+      hint: v => v > 0.8 ? "Near upper band" : v < 0.2 ? "Near lower band" : "Mid range",
+    },
+    {
+      key: "Stochastic K", label: "Stoch K",
+      classify: v => v > 80 ? "bearish" : v < 20 ? "bullish" : "neutral",
+      hint: v => v > 80 ? "Overbought" : v < 20 ? "Oversold" : "Neutral",
+    },
+    {
+      key: "Williams %R", label: "Williams %R",
+      classify: v => v > -20 ? "bearish" : v < -80 ? "bullish" : "neutral",
+      hint: v => v > -20 ? "Overbought" : v < -80 ? "Oversold" : "Neutral",
+    },
+    {
+      key: "OBV Signal", label: "OBV Signal",
+      classify: v => v === 1 ? "bullish" : "bearish",
+      hint: v => v === 1 ? "Volume supporting trend" : "Volume diverging",
+      fmt: v => v === 1 ? "BULL" : "BEAR"
+    },
+    {
+      key: "Mom(20)", label: "Momentum 20d",
+      classify: v => v > 0 ? "bullish" : "bearish",
+      hint: v => v > 0 ? "Positive momentum" : "Negative momentum",
+      fmt: v => (v * 100).toFixed(2) + "%"
+    },
+    {
+      key: "Volatility(20)", label: "Volatility",
+      classify: v => v > 0.03 ? "bearish" : "neutral",
+      hint: v => v > 0.03 ? "High volatility" : "Normal volatility",
+      fmt: v => (v * 100).toFixed(2) + "%"
+    },
+  ];
+
+  configs.forEach(cfg => {
+    const val = signals[cfg.key];
+    const cls = cfg.classify(val);
+    const disp = cfg.fmt ? cfg.fmt(val) : (typeof val === "number" ? val.toFixed(2) : val);
+    const hint = cfg.hint(val);
+    const extra = cfg.extra ? cfg.extra(val) : "";
+
+    const el = document.createElement("div");
+    el.className = "ind-card";
+    el.innerHTML = `
+      <div class="ind-name">${cfg.label}</div>
+      <div class="ind-value ${cls}">${disp}</div>
+      <div class="ind-hint">${hint}</div>
+      ${extra}
+    `;
+    grid.appendChild(el);
+  });
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+loadOverview();
+</script>
+</body>
+</html>

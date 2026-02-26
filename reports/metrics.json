@@ -1,0 +1,22 @@
+{
+  "Logistic Regression": {
+    "accuracy": 0.5312,
+    "roc_auc": 0.5331,
+    "avg_precision": 0.5259
+  },
+  "Random Forest": {
+    "accuracy": 0.5216,
+    "roc_auc": 0.5314,
+    "avg_precision": 0.5235
+  },
+  "Gradient Boosting": {
+    "accuracy": 0.5224,
+    "roc_auc": 0.5233,
+    "avg_precision": 0.5199
+  },
+  "SVM": {
+    "accuracy": 0.5392,
+    "roc_auc": 0.5482,
+    "avg_precision": 0.5315
+  }
+}
