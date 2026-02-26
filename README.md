@@ -13,30 +13,6 @@ Based on the **Kaggle S&P 500 Historical Data** dataset by Cam Nugent:
 - **Period**: Feb 2013 – Feb 2018 (5 years, 1,304 trading days)  
 - **Columns**: `date, open, high, low, close, volume, Name`
 
----
-
-## 🏗️ Project Structure
-
-```
-TrendCast/
-├── main.py                  # ← Run this to train everything
-├── requirements.txt
-├── data/
-│   ├── all_stocks_5yr.csv   # Raw OHLCV data
-│   └── features.csv         # Engineered features
-├── src/
-│   ├── generate_data.py     # Dataset generation
-│   ├── features.py          # Technical indicator engineering
-│   ├── train.py             # Model training & evaluation
-│   └── predict.py           # Inference / signal generation
-├── models/
-│   ├── best_model.pkl       # Best performing model
-│   └── scaler.pkl           # Feature scaler
-├── outputs/
-│   └── trendcast_dashboard.png
-└── reports/
-    └── metrics.json
-```
 
 ---
 
